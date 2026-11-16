@@ -1452,6 +1452,15 @@ function saveApiConfigFromModal() {
   closeModal("apiModal");
 }
 
+function deleteSavedApiKey() {
+  if (!confirm("Bạn có chắc muốn xóa khóa đã lưu trên máy này không?")) return;
+  localStorage.removeItem(STORAGE_KEYS.API_KEY);
+  const inp = document.getElementById("modalInputApiKey");
+  if (inp) inp.value = "";
+  checkApiStatus();
+  alert("Đã xóa khóa. Lần sau dùng AI bạn cần nhập lại.");
+}
+
 async function testGeminiConnection() {
   const key = document.getElementById("modalInputApiKey").value.trim() || getEffectiveApiKey();
   const model = document.getElementById("modalSelectModel").value || getEffectiveModel();
