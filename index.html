@@ -1,0 +1,636 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hệ thống Tạo Văn bản & Báo cáo Số - Phường Nam Hồng Lĩnh</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <!-- HEADER -->
+  <header class="app-header">
+    <div class="brand-group">
+      <div class="emblem-badge" title="Văn thư số Phường Nam Hồng Lĩnh">★</div>
+      <div class="brand-title">
+        <h1>Trợ Lý Văn Thư Số — Phường Nam Hồng Lĩnh</h1>
+        <p>Số 92, đường Nguyễn Xuân Linh, phường Nam Hồng Lĩnh, tỉnh Hà Tĩnh • Chuẩn Nghị định 30/2020/NĐ-CP</p>
+      </div>
+    </div>
+
+    <div class="header-actions">
+      <div id="apiStatusPill" class="api-status-pill" onclick="openModal('apiModal')" title="Bấm để kiểm tra cấu hình Gemini Pro API">
+        <span id="apiStatusDot" class="status-dot"></span>
+        <span id="apiStatusText">Gemini Pro: Kiểm tra Key...</span>
+      </div>
+      <button class="btn btn-header" onclick="openModal('directoryModal')">
+        👥 Danh bạ Người ký & TDP
+      </button>
+      <button class="btn btn-header" onclick="openModal('historyModal')">
+        🗂️ Lịch sử & Sổ văn bản (<span id="historyCountBadge">0</span>)
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT -->
+  <main class="main-container">
+    <!-- CỘT TRÁI: BIỂU MẪU & YÊU CẦU AI -->
+    <section class="left-column">
+
+      <!-- KHUNG HỎI TRỰC TIẾP TRÊN WEB (CHỈ HIỆN KHI CÓ THÔNG TIN CHƯA BIẾT - KHÔNG TỰ ĐOÁN) -->
+      <div id="webQuestionBanner" class="question-banner" style="display: none;">
+        <div class="question-banner-header">
+          <div class="question-banner-title">
+            <span>🙋</span>
+            <span>Hệ thống cần hỏi bạn (Nguyên tắc: Không tự đoán thông tin chưa công khai)</span>
+          </div>
+          <button class="btn btn-sm btn-outline" onclick="dismissQuestionBanner()">Đóng tạm</button>
+        </div>
+        <div style="font-size: 12.5px; color: #78350f; margin-bottom: 6px;">
+          Những thông tin dưới đây không có sẵn trên mạng công khai hoặc chưa có trong yêu cầu của bạn. Bạn vui lòng nhập giúp để hệ thống điền chính xác và ghi nhớ cho lần sau:
+        </div>
+        <div id="webQuestionList"></div>
+      </div>
+
+      <!-- KHUNG 1: TRỢ LÝ AI GEMINI PRO SOẠN THẢO TỪ YÊU CẦU & FILE ĐÍNH KÈM -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2>✨ Gửi yêu cầu & Đính kèm File để tạo văn bản / báo cáo</h2>
+          <span style="font-size: 11.5px; color: #1e40af; font-weight: 600;">Không tự bịa số liệu</span>
+        </div>
+        <div class="panel-body">
+          <div class="ai-box">
+
+            <!-- THANH QUAY LẠI LỆNH TRƯỚC ĐÓ (UNDO / REDO / LỊCH SỬ LỆNH) -->
+            <div class="cmd-history-bar">
+              <div class="cmd-history-buttons">
+                <button
+                  type="button"
+                  id="btnUndoCmd"
+                  class="btn-undo"
+                  onclick="undoPreviousCommand()"
+                  disabled
+                  title="Quay lại câu lệnh và phiên bản văn bản liền trước"
+                >
+                  ⬅️ Quay lại lệnh trước
+                </button>
+                <button
+                  type="button"
+                  id="btnRedoCmd"
+                  class="btn-undo"
+                  onclick="redoNextCommand()"
+                  disabled
+                  title="Tiến tới câu lệnh tiếp theo"
+                >
+                  ➡️ Lệnh tiếp theo
+                </button>
+                <span id="cmdStepIndicator" style="font-size: 11.5px; color: #475569; font-weight: 600;"></span>
+              </div>
+
+              <div style="display: flex; align-items: center; gap: 6px; flex: 1; justify-content: flex-end; min-width: 180px;">
+                <select
+                  id="selectRecentCommands"
+                  class="form-control"
+                  style="padding: 4px 8px; font-size: 12px; max-width: 240px;"
+                  onchange="onSelectRecentCommand()"
+                >
+                  <option value="">🕘 Chọn lại các lệnh trước đó...</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="ai-box-header">
+              <div class="ai-box-title">
+                <span>🤖</span>
+                <span>1. Nhập yêu cầu văn bản cần soạn cho Phường Nam Hồng Lĩnh</span>
+              </div>
+              <button class="btn btn-sm btn-outline" onclick="fillSamplePrompt()">💡 Xem mẫu câu lệnh</button>
+            </div>
+            <textarea
+              id="aiPromptInput"
+              class="form-control"
+              rows="3"
+              placeholder="Ví dụ: Dựa vào file công văn cấp trên đính kèm bên dưới, hãy soạn Công văn triển khai của UBND phường Nam Hồng Lĩnh gửi các Tổ dân phố..."
+            ></textarea>
+
+            <!-- MỤC THÊM FILE ĐỂ ĐỌC VÀ TRÍCH XUẤT NỘI DUNG LIÊN QUAN RA VĂN BẢN -->
+            <div
+              id="fileUploadDropzone"
+              class="file-upload-box"
+              ondragover="onFileDragOver(event)"
+              ondragleave="onFileDragLeave(event)"
+              ondrop="onFileDrop(event)"
+            >
+              <div class="file-upload-header">
+                <div>
+                  <div style="font-weight: 700; color: #1e3a8a; font-size: 13px;">
+                    📎 2. Thêm File tài liệu (nếu có) để đọc & trích xuất nội dung vào văn bản:
+                  </div>
+                  <div style="font-size: 11.5px; color: #475569; margin-top: 2px;">
+                    Hỗ trợ: <strong>PDF</strong> (cả bản scan), <strong>Ảnh chụp văn bản</strong> (.jpg, .png), <strong>Word</strong> (.docx, .doc), <strong>Text/Excel</strong> (.txt, .csv)
+                  </div>
+                </div>
+                <div style="display: flex; gap: 6px;">
+                  <input
+                    type="file"
+                    id="inputFileAttachment"
+                    multiple
+                    accept=".pdf,.png,.jpg,.jpeg,.webp,.docx,.doc,.txt,.csv,.html"
+                    style="display: none;"
+                    onchange="handleFilesSelected(this.files)"
+                  />
+                  <button
+                    type="button"
+                    class="btn btn-sm btn-outline"
+                    style="background: #fff; border-color: #1e3a8a; color: #1e3a8a;"
+                    onclick="document.getElementById('inputFileAttachment').click()"
+                  >
+                    📂 Chọn File đính kèm...
+                  </button>
+                  <button
+                    type="button"
+                    id="btnExtractFileOnly"
+                    class="btn btn-sm btn-success"
+                    style="display: none;"
+                    onclick="extractRelevantContentFromFile()"
+                    title="Đọc các file đính kèm và rút trích số hiệu, ngày tháng, nội dung liên quan"
+                  >
+                    🔍 Đọc File & Trích xuất thông tin
+                  </button>
+                </div>
+              </div>
+
+              <!-- Danh sách các file đã chọn -->
+              <div id="attachedFilesList" class="file-list"></div>
+
+              <!-- Kết quả trích xuất từ file -->
+              <div id="fileExtractionResultBox" class="extracted-summary-box" style="display: none;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px;">
+                  <strong>📑 Nội dung liên quan đã trích xuất từ File:</strong>
+                  <div style="display: flex; gap: 6px;">
+                    <button type="button" class="btn btn-sm btn-primary" onclick="insertExtractedTextToBody()">
+                      ⬇️ Đưa thẳng vào Nội dung văn bản
+                    </button>
+                    <button type="button" class="btn btn-sm btn-outline" onclick="document.getElementById('fileExtractionResultBox').style.display='none'">
+                      Ẩn
+                    </button>
+                  </div>
+                </div>
+                <div id="fileExtractionTextContent" style="white-space: pre-wrap; max-height: 180px; overflow-y: auto; background: #fff; padding: 8px; border-radius: 6px; border: 1px solid #bbf7d0;"></div>
+              </div>
+            </div>
+
+            <!-- Khung hiển thị câu hỏi làm rõ từ AI trước khi viết -->
+            <div id="aiClarifyContainer" style="display: none; margin-top: 10px; background: #fffbeb; border: 1px solid #f59e0b; border-radius: 8px; padding: 10px;">
+              <div style="font-weight: 700; color: #92400e; font-size: 13px; margin-bottom: 6px;">
+                🔍 Gemini hỏi thêm bạn các chi tiết thực tế sau (để không tự đoán):
+              </div>
+              <div id="aiClarifyQuestionsList"></div>
+              <div style="margin-top: 8px; display: flex; gap: 8px; justify-content: flex-end;">
+                <button class="btn btn-sm btn-primary" onclick="generateWithGemini(true)">
+                  ✅ Đã trả lời xong — Tạo văn bản hoàn chỉnh
+                </button>
+              </div>
+            </div>
+
+            <div class="ai-actions">
+              <button id="btnAiCheckMissing" class="btn btn-accent" onclick="askGeminiForMissingInfo()">
+                ❓ 1. Kiểm tra & Hỏi tôi phần còn thiếu
+              </button>
+              <button id="btnAiGenerate" class="btn btn-primary" onclick="generateWithGemini(false)">
+                ⚡ 2. Tạo ngay văn bản (Từ lệnh & File đính kèm)
+              </button>
+              <button class="btn btn-outline" onclick="generateOfflineTemplate()" title="Tạo khung văn bản chuẩn ngay lập tức không cần gọi API">
+                📝 Tạo khung mẫu nhanh (Offline)
+              </button>
+            </div>
+            <div id="aiStatusMessage" style="font-size: 12px; color: #475569; margin-top: 8px; display: none;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- KHUNG 2: BIỂU MẪU THÔNG TIN HÀNH CHÍNH CHUẨN NĐ 30/2020/NĐ-CP -->
+      <div class="panel-card">
+        <div class="panel-header">
+          <h2>📋 Thông tin Thể thức Văn bản (Biểu mẫu điền nhanh)</h2>
+          <button class="btn btn-sm btn-outline" onclick="resetForm()">Làm mới</button>
+        </div>
+        <div class="panel-body">
+
+          <!-- PHẦN I: CƠ QUAN BAN HÀNH & TIÊU ĐỀ GÓC TRÁI -->
+          <div class="form-section-title">
+            <span>1. Cơ quan ban hành & Tiêu đề góc trái</span>
+            <label class="inline-toggle">
+              <input type="checkbox" id="toggleParentOrg" onchange="onToggleParentOrg()" />
+              <span>Bật dòng cơ quan cấp trên</span>
+            </label>
+          </div>
+
+          <div class="form-group">
+            <label for="selectCoQuan">Chọn Cơ quan / Đơn vị ban hành:</label>
+            <select id="selectCoQuan" class="form-control" onchange="onCoQuanChange()"></select>
+          </div>
+
+          <div id="parentOrgGroup" class="form-group" style="display: none;">
+            <label for="inputParentOrg">Dòng Cơ quan cấp trên (góc trên bên trái - có thể tự sửa):</label>
+            <input
+              type="text"
+              id="inputParentOrg"
+              class="form-control"
+              placeholder="Ví dụ: ỦY BAN NHÂN DÂN TỈNH HÀ TĨNH hoặc UBND PHƯỜNG NAM HỒNG LĨNH"
+              oninput="renderDocumentPreview()"
+            />
+          </div>
+
+          <div class="form-group">
+            <label for="inputIssuingOrg">Tên Cơ quan ban hành (in đậm góc trái - có thể sửa):</label>
+            <input
+              type="text"
+              id="inputIssuingOrg"
+              class="form-control"
+              oninput="renderDocumentPreview()"
+            />
+          </div>
+
+          <!-- PHẦN II: LOẠI VĂN BẢN, SỐ & KÝ HIỆU, NGÀY THÁNG -->
+          <div class="form-section-title">
+            <span>2. Loại văn bản, Số & Ký hiệu, Ngày tháng</span>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="selectLoaiVanBan">Loại văn bản:</label>
+              <select id="selectLoaiVanBan" class="form-control" onchange="onLoaiVanBanChange()">
+                <option value="BC">Báo cáo (BC)</option>
+                <option value="CV">Công văn hành chính (Không ghi tên loại)</option>
+                <option value="GM">Giấy mời (GM)</option>
+                <option value="TB">Thông báo (TB)</option>
+                <option value="TTr">Tờ trình (TTr)</option>
+                <option value="QD">Quyết định (QĐ)</option>
+                <option value="KH">Kế hoạch (KH)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="inputSoVanBan">Số văn bản (để trống nếu chờ cấp số):</label>
+              <input
+                type="text"
+                id="inputSoVanBan"
+                class="form-control"
+                placeholder="VD: 125 (hoặc để trống: ...)"
+                oninput="updateSoKyHieu()"
+              />
+            </div>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="inputMaBoPhan">
+                Chữ viết tắt phòng/bộ phận soạn thảo:
+              </label>
+              <div style="display: flex; gap: 6px;">
+                <input
+                  type="text"
+                  id="inputMaBoPhan"
+                  class="form-control"
+                  placeholder="Bạn tự nhập (VD: VP, VHXH, KTHTĐT...)"
+                  oninput="updateSoKyHieu()"
+                />
+                <button class="btn btn-sm btn-outline" type="button" onclick="saveCustomAbbreviation()" title="Lưu chữ viết tắt này để lần sau chọn nhanh">
+                  + Lưu
+                </button>
+              </div>
+              <div id="savedAbbrevChips" class="chip-list"></div>
+            </div>
+
+            <div class="form-group">
+              <label for="inputKyHieuFull">Ký hiệu đầy đủ (hiển thị trên văn bản):</label>
+              <input
+                type="text"
+                id="inputKyHieuFull"
+                class="form-control"
+                oninput="renderDocumentPreview()"
+              />
+            </div>
+          </div>
+
+          <div class="form-grid-3">
+            <div class="form-group">
+              <label for="inputDiaDanh">Địa danh:</label>
+              <input type="text" id="inputDiaDanh" class="form-control" value="Nam Hồng Lĩnh" oninput="renderDocumentPreview()" />
+            </div>
+            <div class="form-group">
+              <label for="inputNgayThang">Ngày, tháng, năm:</label>
+              <input type="date" id="inputNgayThang" class="form-control" onchange="renderDocumentPreview()" />
+            </div>
+            <div class="form-group">
+              <label style="visibility: hidden;">Hôm nay</label>
+              <button type="button" class="btn btn-outline" style="width: 100%;" onclick="setTodayDate()">Lấy ngày hôm nay</button>
+            </div>
+          </div>
+
+          <!-- PHẦN III: TRÍCH YẾU, KÍNH GỬI & CHỌN TỔ DÂN PHỐ THEO SỐ -->
+          <div class="form-section-title">
+            <span>3. Trích yếu, Kính gửi & Chọn Tổ dân phố (theo số)</span>
+          </div>
+
+          <div class="form-group">
+            <label for="inputTrichYeu">Trích yếu nội dung văn bản (V/v ... hoặc Về việc ...):</label>
+            <textarea
+              id="inputTrichYeu"
+              class="form-control"
+              rows="2"
+              placeholder="Ví dụ: Kết quả thực hiện công tác cải cách hành chính tháng 11 năm 2026"
+              oninput="renderDocumentPreview()"
+            ></textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="inputKinhGui">Kính gửi (mỗi đơn vị/cá nhân 1 dòng hoặc cách nhau dấu chấm phẩy):</label>
+            <textarea
+              id="inputKinhGui"
+              class="form-control"
+              rows="2"
+              placeholder="Ví dụ: Ủy ban nhân dân tỉnh Hà Tĩnh; hoặc Tổ trưởng các Tổ dân phố..."
+              oninput="renderDocumentPreview()"
+            ></textarea>
+          </div>
+
+          <!-- BỘ CHỌN TỔ DÂN PHỐ THEO SỐ -->
+          <div class="tdp-box">
+            <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
+              <div style="font-size: 12.5px; font-weight: 700; color: #1e3a8a;">
+                🏘️ Chọn nhanh Tổ dân phố theo số (để đưa vào Kính gửi & Nơi nhận):
+              </div>
+              <div style="display: flex; align-items: center; gap: 6px;">
+                <span style="font-size: 12px; color: #475569;">Tổng số TDP của phường:</span>
+                <input
+                  type="number"
+                  id="inputTotalTdp"
+                  min="1"
+                  max="60"
+                  style="width: 62px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 5px; font-weight: 700;"
+                  onchange="onTotalTdpChange()"
+                  placeholder="?"
+                />
+              </div>
+            </div>
+
+            <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
+              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(true)">☑️ Chọn tất cả các TDP</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(false)">⬜ Bỏ chọn tất cả</button>
+              <button type="button" class="btn btn-sm btn-primary" onclick="applySelectedTdpToDocument()">
+                ➕ Đưa các TDP đã chọn vào Kính gửi & Nơi nhận
+              </button>
+            </div>
+
+            <div id="tdpGridContainer" class="tdp-grid"></div>
+          </div>
+
+          <!-- PHẦN IV: NỘI DUNG VĂN BẢN -->
+          <div class="form-section-title" style="margin-top: 16px;">
+            <span>4. Nội dung chính của Văn bản / Báo cáo</span>
+            <span style="font-size: 11.5px; font-weight: normal; color: #64748b;">Có thể sửa ở đây hoặc gõ trực tiếp lên trang A4 bên phải</span>
+          </div>
+
+          <div class="form-group">
+            <textarea
+              id="inputNoiDung"
+              class="form-control"
+              rows="8"
+              placeholder="Nội dung văn bản sẽ hiển thị tại đây. Bạn có thể bấm nút 'Tạo ngay nội dung văn bản (Gemini Pro)' ở trên hoặc tự gõ..."
+              oninput="renderDocumentPreview()"
+            ></textarea>
+          </div>
+
+          <!-- PHẦN V: NƠI NHẬN & NGƯỜI KÝ -->
+          <div class="form-section-title">
+            <span>5. Nơi nhận & Lãnh đạo ký ban hành</span>
+          </div>
+
+          <div class="form-group">
+            <label for="inputNoiNhan">Nơi nhận (mỗi dòng 1 nơi nhận):</label>
+            <textarea
+              id="inputNoiNhan"
+              class="form-control"
+              rows="4"
+              oninput="renderDocumentPreview()"
+            >- Như trên;
+- Thường trực Đảng ủy, HĐND phường (để b/c);
+- Chủ tịch, các PCT UBND phường;
+- Lưu: VT.</textarea>
+          </div>
+
+          <div class="form-group">
+            <label for="selectNguoiKy">Chọn Người ký (Nếu chọn chức danh chưa có tên công khai, web sẽ hỏi bạn):</label>
+            <select id="selectNguoiKy" class="form-control" onchange="onNguoiKyChange()"></select>
+          </div>
+
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label for="inputQuyenHanKy">Quyền hạn ký (TM., KT., TL. ...):</label>
+              <textarea
+                id="inputQuyenHanKy"
+                class="form-control"
+                rows="2"
+                oninput="renderDocumentPreview()"
+              ></textarea>
+            </div>
+            <div class="form-group">
+              <label for="inputChucVuKy">Chức vụ ký:</label>
+              <input
+                type="text"
+                id="inputChucVuKy"
+                class="form-control"
+                oninput="renderDocumentPreview()"
+              />
+              <label for="inputHoTenKy" style="margin-top: 6px;">Họ và tên người ký:</label>
+              <input
+                type="text"
+                id="inputHoTenKy"
+                class="form-control"
+                placeholder="Họ và tên..."
+                oninput="renderDocumentPreview()"
+              />
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- CỘT PHẢI: XEM TRƯỚC TRANG A4 & XUẤT FILE -->
+    <section class="right-column">
+      <div class="preview-Sticky-wrapper">
+        <div class="preview-toolbar">
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <span style="font-weight: 700; color: var(--primary);">📄 Bản xem trước A4 (Chuẩn NĐ 30/2020/NĐ-CP)</span>
+            <span style="font-size: 12px; color: #64748b;">(Bấm trực tiếp vào trang giấy để sửa từng chữ)</span>
+          </div>
+          <div style="display: flex; gap: 8px; flex-wrap: wrap;">
+            <button class="btn btn-primary" onclick="exportToWordDocx()">
+              📥 Xuất file Word (.doc / .docx)
+            </button>
+            <button class="btn btn-outline" onclick="window.print()">
+              🖨️ In ngay / Xuất PDF
+            </button>
+            <button class="btn btn-success" onclick="saveDocumentToHistory()">
+              💾 Lưu vào Sổ lịch sử
+            </button>
+          </div>
+        </div>
+
+        <div class="preview-canvas-container">
+          <!-- TỜ GIẤY A4 -->
+          <div id="a4DocumentPage" class="a4-page" contenteditable="true" spellcheck="false">
+            <!-- Được render tự động từ app.js -->
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <!-- MODAL 1: CẤU HÌNH GEMINI PRO API -->
+  <div id="apiModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🔑 Kết nối Gemini Pro API của bạn</h3>
+        <button class="btn btn-sm btn-outline" onclick="closeModal('apiModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="background: #eff6ff; border-left: 4px solid #1e3a8a; padding: 10px 12px; border-radius: 6px; margin-bottom: 14px; font-size: 13px;">
+          <strong>Hướng dẫn gắn cố định vào file cấu hình (như bạn đã chọn):</strong><br />
+          Bạn mở file <code>config.js</code> trong thư mục trang web và dán khóa API của bạn vào dòng:<br />
+          <code>GEMINI_API_KEY: "AIzaSy..."</code><br />
+          <em>Hoặc bạn có thể dán trực tiếp vào ô bên dưới để sử dụng ngay lập tức trên trình duyệt này:</em>
+        </div>
+
+        <div class="form-group">
+          <label for="modalInputApiKey">Khóa Gemini API Key:</label>
+          <input
+            type="password"
+            id="modalInputApiKey"
+            class="form-control"
+            placeholder="Dán mã AIzaSy... của bạn vào đây"
+          />
+        </div>
+
+        <div class="form-group">
+          <label for="modalSelectModel">Phiên bản mô hình Gemini:</label>
+          <select id="modalSelectModel" class="form-control">
+            <option value="gemini-4-hydrogen">Gemini 4 Hydrogen (Khuyên dùng - Thay thế Gemini Pro thế hệ cũ, cân bằng & chuẩn xác)</option>
+            <option value="gemini-4-argon">Gemini 4 Argon (Suy luận nhanh & hiệu quả cao)</option>
+            <option value="gemini-4-carbon">Gemini 4 Carbon (Mô hình suy luận chuyên sâu mạnh nhất)</option>
+            <option value="gemini-3.5-flash-lite">Gemini 3.5 Flash-Lite (Tốc độ phản hồi tức thì, tiết kiệm)</option>
+          </select>
+        </div>
+
+        <div id="apiTestResultBox" style="font-size: 13px; margin-top: 10px; display: none;"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="testGeminiConnection()">🔌 Kiểm tra kết nối</button>
+        <button class="btn btn-primary" onclick="saveApiConfigFromModal()">💾 Lưu & Áp dụng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 2: QUẢN LÝ DANH BẠ NGƯỜI KÝ & TỔ DÂN PHỐ -->
+  <div id="directoryModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>👥 Danh bạ Lãnh đạo ký & Tổ dân phố (Phường Nam Hồng Lĩnh)</h3>
+        <button class="btn btn-sm btn-outline" onclick="closeModal('directoryModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: #475569; margin-bottom: 12px;">
+          Hệ thống chỉ nạp sẵn 4 lãnh đạo đã có thông tin công khai trên Cổng TTĐT Hà Tĩnh. Bạn có thể bổ sung thêm các Phó Chủ tịch, Chủ tịch UBMTTQ, Trưởng/Phó phòng tại đây để chọn nhanh:
+        </p>
+
+        <div style="background: #f8fafc; border: 1px solid #cbd5e1; border-radius: 8px; padding: 12px; margin-bottom: 14px;">
+          <div style="font-weight: 700; font-size: 13px; margin-bottom: 8px; color: var(--primary);">➕ Thêm Người ký mới vào danh bạ:</div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Họ và tên:</label>
+              <input type="text" id="newSignerName" class="form-control" placeholder="VD: Nguyễn Văn A" />
+            </div>
+            <div class="form-group">
+              <label>Chức vụ hiển thị:</label>
+              <input type="text" id="newSignerRole" class="form-control" placeholder="VD: Phó Chủ tịch UBND phường" />
+            </div>
+          </div>
+          <div class="form-grid-2">
+            <div class="form-group">
+              <label>Quyền hạn ký trên văn bản:</label>
+              <input type="text" id="newSignerAuth" class="form-control" placeholder="VD: TM. ỦY BAN NHÂN DÂN / KT. CHỦ TỊCH" />
+            </div>
+            <div class="form-group">
+              <label>Chức vụ dưới quyền hạn ký:</label>
+              <input type="text" id="newSignerTitle" class="form-control" placeholder="VD: PHÓ CHỦ TỊCH" />
+            </div>
+          </div>
+          <button class="btn btn-sm btn-primary" onclick="addNewSignerFromModal()">+ Lưu vào danh sách người ký</button>
+        </div>
+
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Họ và tên</th>
+              <th>Chức vụ</th>
+              <th>Quyền hạn / Chức vụ ký</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="signerTableBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('directoryModal')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 3: LỊCH SỬ & SỔ THEO DÕI VĂN BẢN ĐÃ TẠO -->
+  <div id="historyModal" class="modal-backdrop">
+    <div class="modal-box" style="max-width: 860px;">
+      <div class="modal-header">
+        <h3>🗂️ Lịch sử Văn bản đã tạo & Xuất Sổ theo dõi</h3>
+        <button class="btn btn-sm btn-outline" onclick="closeModal('historyModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px; gap: 10px;">
+          <input
+            type="text"
+            id="searchHistoryInput"
+            class="form-control"
+            placeholder="🔍 Tìm kiếm theo số hiệu, trích yếu, ngày tháng..."
+            oninput="renderHistoryTable()"
+          />
+          <button class="btn btn-success" style="white-space: nowrap;" onclick="exportHistoryToCSV()">
+            📊 Xuất Sổ ra Excel (.csv)
+          </button>
+        </div>
+
+        <table class="history-table">
+          <thead>
+            <tr>
+              <th>Ngày ban hành</th>
+              <th>Số & Ký hiệu</th>
+              <th>Loại VB</th>
+              <th>Trích yếu nội dung</th>
+              <th>Người ký</th>
+              <th>Thao tác</th>
+            </tr>
+          </thead>
+          <tbody id="historyTableBody"></tbody>
+        </table>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" onclick="closeModal('historyModal')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
+
