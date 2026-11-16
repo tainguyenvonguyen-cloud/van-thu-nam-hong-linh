@@ -355,31 +355,37 @@
             ></textarea>
           </div>
 
-          <!-- BỘ CHỌN TỔ DÂN PHỐ THEO SỐ -->
+          <!-- BỘ CHỌN TỔ DÂN PHỐ THEO TÊN -->
           <div class="tdp-box">
             <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 6px;">
               <div style="font-size: 12.5px; font-weight: 700; color: #1e3a8a;">
-                🏘️ Chọn nhanh Tổ dân phố theo số (để đưa vào Kính gửi & Nơi nhận):
+                🏘️ Danh sách Tổ dân phố (tích chọn để đưa tên vào Kính gửi & Nơi nhận):
               </div>
-              <div style="display: flex; align-items: center; gap: 6px;">
-                <span style="font-size: 12px; color: #475569;">Tổng số TDP của phường:</span>
-                <input
-                  type="number"
-                  id="inputTotalTdp"
-                  min="1"
-                  max="60"
-                  style="width: 62px; padding: 3px 6px; border: 1px solid #cbd5e1; border-radius: 5px; font-weight: 700;"
-                  onchange="onTotalTdpChange()"
-                  placeholder="?"
-                />
-              </div>
+              <button type="button" class="btn btn-sm btn-outline" onclick="openModal('tdpModal')" title="Nhập hoặc sửa nhanh danh sách toàn bộ tên các Tổ dân phố">
+                ✏️ Sửa danh sách TDP (<span id="tdpCountBadge">0</span>)
+              </button>
+            </div>
+
+            <!-- Ô thêm nhanh 1 TDP theo tên -->
+            <div style="display: flex; gap: 6px; margin-top: 8px;">
+              <input
+                type="text"
+                id="inputNewTdpName"
+                class="form-control"
+                style="font-size: 12.5px; padding: 5px 8px;"
+                placeholder="Gõ tên Tổ dân phố mới... (VD: Tổ dân phố 1, TDP Nam Xuyên, TDP Đậu Liêu...)"
+                onkeydown="if(event.key==='Enter'){event.preventDefault();addNewTdpByName();}"
+              />
+              <button type="button" class="btn btn-sm btn-primary" style="white-space: nowrap;" onclick="addNewTdpByName()">
+                ➕ Thêm TDP
+              </button>
             </div>
 
             <div style="display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap;">
-              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(true)">☑️ Chọn tất cả các TDP</button>
-              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(false)">⬜ Bỏ chọn tất cả</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(true)">☑️ Chọn tất cả</button>
+              <button type="button" class="btn btn-sm btn-outline" onclick="selectAllTdp(false)">⬜ Bỏ chọn</button>
               <button type="button" class="btn btn-sm btn-primary" onclick="applySelectedTdpToDocument()">
-                ➕ Đưa các TDP đã chọn vào Kính gửi & Nơi nhận
+                ➕ Đưa TDP đã chọn vào Kính gửi & Nơi nhận
               </button>
             </div>
 
@@ -626,6 +632,33 @@
       </div>
       <div class="modal-footer">
         <button class="btn btn-outline" onclick="closeModal('historyModal')">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL 4: QUẢN LÝ DANH SÁCH TÊN TỔ DÂN PHỐ -->
+  <div id="tdpModal" class="modal-backdrop">
+    <div class="modal-box">
+      <div class="modal-header">
+        <h3>🏘️ Quản lý danh sách tên Tổ dân phố (Phường Nam Hồng Lĩnh)</h3>
+        <button class="btn btn-sm btn-outline" onclick="closeModal('tdpModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p style="font-size: 13px; color: #475569; margin-bottom: 8px;">
+          Bạn có thể nhập hoặc dán danh sách tên các Tổ dân phố của phường vào khung bên dưới (<strong>mỗi dòng một tên Tổ dân phố</strong>). Khi lưu lại, hệ thống sẽ tự động cập nhật danh sách chọn nhanh:
+        </p>
+        <div class="form-group">
+          <textarea
+            id="tdpBulkTextarea"
+            class="form-control"
+            rows="12"
+            placeholder="Ví dụ:&#10;Tổ dân phố 1&#10;Tổ dân phố 2&#10;Tổ dân phố 3&#10;Tổ dân phố Nam Xuyên&#10;Tổ dân phố Thuận Trung..."
+          ></textarea>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-outline" style="margin-right: auto;" onclick="resetDefaultTdpList()">Khôi phục mẫu mặc định</button>
+        <button class="btn btn-primary" onclick="saveTdpBulkFromModal()">💾 Lưu danh sách TDP</button>
       </div>
     </div>
   </div>

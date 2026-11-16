@@ -14,6 +14,7 @@ const STORAGE_KEYS = {
   MODEL: "NHL_GEMINI_MODEL",
   SIGNERS: "NHL_CUSTOM_SIGNERS",
   TOTAL_TDP: "NHL_TOTAL_TDP",
+  TDP_NAMES: "NHL_NAMED_TDP_LIST",
   ABBREVS: "NHL_SAVED_ABBREVS",
   HISTORY: "NHL_DOC_HISTORY",
   CMD_HISTORY: "NHL_CMD_UNDO_STACK"
@@ -120,27 +121,30 @@ document.addEventListener("DOMContentLoaded", () => {
 function checkInitialUnknownsAndAskOnWeb() {
   activeWebQuestions = [];
 
-  // Kiểm tra 1: Tổng số Tổ dân phố (TDP) theo số của phường Nam Hồng Lĩnh đã được xác nhận chưa?
-  const savedTotalTdp = localStorage.getItem(STORAGE_KEYS.TOTAL_TDP);
-  if (!savedTotalTdp) {
+  // Kiểm tra 1: Danh sách tên các Tổ dân phố (TDP) của phường Nam Hồng Lĩnh đã được xác nhận chưa?
+  const savedTdpNames = localStorage.getItem(STORAGE_KEYS.TDP_NAMES);
+  if (!savedTdpNames) {
     activeWebQuestions.push({
       id: "q_total_tdp",
       question:
-        "1. Sau khi sáp nhập (Nam Hồng, Đậu Liêu, Thuận Lộc), phường Nam Hồng Lĩnh hiện đang đánh số từ Tổ dân phố 1 đến Tổ dân phố số mấy ạ?",
-      placeholder: "Nhập tổng số TDP (Ví dụ: 21 hoặc 25...)",
-      type: "number",
-      defaultValue: "21",
-      buttonText: "Lưu số lượng TDP",
+        "1. Bạn muốn thiết lập danh sách tên các Tổ dân phố của phường Nam Hồng Lĩnh như thế nào? (Nhập danh sách tên các TDP cách nhau bằng dấu phẩy, hoặc để mặc định rồi sửa sau):",
+      placeholder: "Ví dụ: Tổ dân phố 1, Tổ dân phố 2, TDP Nam Xuyên, TDP Đậu Liêu...",
+      type: "text",
+      defaultValue: "",
+      buttonText: "Lưu danh sách tên TDP",
       onAnswer: (val) => {
-        const num = parseInt(val, 10);
-        if (!isNaN(num) && num > 0 && num <= 100) {
-          localStorage.setItem(STORAGE_KEYS.TOTAL_TDP, String(num));
-          document.getElementById("inputTotalTdp").value = num;
-          renderTdpCheckboxes(num);
-          removeWebQuestion("q_total_tdp");
-        } else {
-          alert("Vui lòng nhập một số nguyên hợp lệ (từ 1 đến 100).");
+        let list = [];
+        if (val && val.trim()) {
+          list = val
+            .split(/[,;\n]/)
+            .map((s) => s.trim())
+            .filter(Boolean);
         }
+        if (list.length === 0) {
+          list = Array.from({ length: 21 }, (_, i) => `Tổ dân phố ${i + 1}`);
+        }
+        saveTdpNames(list);
+        removeWebQuestion("q_total_tdp");
       }
     });
   }
@@ -567,89 +571,154 @@ function renderSignerDirectoryTable() {
 }
 
 // ============================================================================
-// 4. BỘ CHỌN TỔ DÂN PHỐ THEO SỐ (TỔ DÂN PHỐ 1, 2, 3...)
+// 4. QUẢN LÝ & CHỌN TỔ DÂN PHỐ THEO TÊN RIÊNG
 // ============================================================================
+function getSavedTdpNames() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEYS.TDP_NAMES);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed) && parsed.length > 0) {
+        return parsed;
+      }
+    }
+  } catch (e) {}
+
+  // Mặc định ban đầu nếu chưa có: lấy số lượng từ TOTAL_TDP hoặc 21 tổ
+  const total = parseInt(localStorage.getItem(STORAGE_KEYS.TOTAL_TDP) || "21", 10);
+  const defaultList = Array.from({ length: total }, (_, i) => `Tổ dân phố ${i + 1}`);
+  localStorage.setItem(STORAGE_KEYS.TDP_NAMES, JSON.stringify(defaultList));
+  return defaultList;
+}
+
+function saveTdpNames(list) {
+  const cleanList = (list || [])
+    .map((s) => String(s || "").trim())
+    .filter(Boolean);
+  // Loại bỏ tên trùng lặp nhưng giữ thứ tự
+  const uniqueList = Array.from(new Set(cleanList));
+  localStorage.setItem(STORAGE_KEYS.TDP_NAMES, JSON.stringify(uniqueList));
+  renderTdpCheckboxes();
+}
+
 function initTdpSelector() {
-  const savedTotal = parseInt(localStorage.getItem(STORAGE_KEYS.TOTAL_TDP) || "21", 10);
-  document.getElementById("inputTotalTdp").value = savedTotal;
-  renderTdpCheckboxes(savedTotal);
+  renderTdpCheckboxes();
 }
 
-function onTotalTdpChange() {
-  const val = parseInt(document.getElementById("inputTotalTdp").value, 10);
-  if (isNaN(val) || val < 1 || val > 100) return;
-  localStorage.setItem(STORAGE_KEYS.TOTAL_TDP, String(val));
-  removeWebQuestion("q_total_tdp");
-  renderTdpCheckboxes(val);
-}
-
-function renderTdpCheckboxes(total) {
+function renderTdpCheckboxes() {
   const container = document.getElementById("tdpGridContainer");
+  const badge = document.getElementById("tdpCountBadge");
+  const list = getSavedTdpNames();
+
+  if (badge) badge.textContent = list.length;
+  if (!container) return;
+
+  if (list.length === 0) {
+    container.innerHTML = `<div style="grid-column: 1/-1; color: #64748b; font-size: 12.5px; padding: 10px; text-align: center;">Chưa có Tổ dân phố nào. Hãy gõ tên và bấm "➕ Thêm TDP" hoặc "✏️ Sửa danh sách TDP".</div>`;
+    return;
+  }
+
   let html = "";
-  for (let i = 1; i <= total; i++) {
+  list.forEach((name, idx) => {
     html += `
-      <label class="tdp-item" id="tdp_label_${i}">
-        <input type="checkbox" class="tdp-checkbox" value="${i}" onchange="onTdpCheckChange(${i})" />
-        <span>TDP ${i}</span>
+      <label class="tdp-item" id="tdp_label_${idx}">
+        <div class="tdp-item-label" title="${escapeHtml(name)}">
+          <input type="checkbox" class="tdp-checkbox" value="${escapeHtml(name)}" onchange="onTdpCheckChange(${idx})" />
+          <span>${escapeHtml(name)}</span>
+        </div>
+        <button type="button" class="tdp-del-btn" onclick="deleteTdpByIndex(${idx}, event)" title="Xóa ${escapeHtml(name)}">✕</button>
       </label>
     `;
-  }
+  });
   container.innerHTML = html;
 }
 
-function onTdpCheckChange(num) {
-  const label = document.getElementById(`tdp_label_${num}`);
+function onTdpCheckChange(idx) {
+  const label = document.getElementById(`tdp_label_${idx}`);
   const cb = label ? label.querySelector("input") : null;
   if (label && cb) {
     label.classList.toggle("checked", cb.checked);
   }
 }
 
+function addNewTdpByName() {
+  const inp = document.getElementById("inputNewTdpName");
+  const val = (inp ? inp.value : "").trim();
+  if (!val) {
+    alert("Vui lòng gõ tên Tổ dân phố cần thêm!");
+    return;
+  }
+
+  const list = getSavedTdpNames();
+  if (list.some((item) => item.toLowerCase() === val.toLowerCase())) {
+    alert(`Tổ dân phố "${val}" đã có trong danh sách!`);
+    return;
+  }
+
+  list.push(val);
+  saveTdpNames(list);
+  inp.value = "";
+  inp.focus();
+}
+
+function deleteTdpByIndex(idx, event) {
+  if (event) {
+    event.preventDefault();
+    event.stopPropagation();
+  }
+  const list = getSavedTdpNames();
+  const name = list[idx];
+  if (!confirm(`Bạn có chắc muốn xóa "${name}" khỏi danh sách chọn nhanh?`)) return;
+
+  list.splice(idx, 1);
+  saveTdpNames(list);
+}
+
 function selectAllTdp(checked) {
   const checkboxes = document.querySelectorAll(".tdp-checkbox");
-  checkboxes.forEach((cb) => {
+  checkboxes.forEach((cb, idx) => {
     cb.checked = checked;
-    const num = cb.value;
-    const label = document.getElementById(`tdp_label_${num}`);
+    const label = document.getElementById(`tdp_label_${idx}`);
     if (label) label.classList.toggle("checked", checked);
   });
 }
 
-function getSelectedTdpNumbers() {
+function getSelectedTdpNames() {
   const checkboxes = document.querySelectorAll(".tdp-checkbox:checked");
-  return Array.from(checkboxes).map((cb) => parseInt(cb.value, 10));
+  return Array.from(checkboxes).map((cb) => cb.value.trim()).filter(Boolean);
 }
 
 function applySelectedTdpToDocument() {
-  const selected = getSelectedTdpNumbers();
-  const total = parseInt(document.getElementById("inputTotalTdp").value || "21", 10);
+  const selected = getSelectedTdpNames();
+  const all = getSavedTdpNames();
 
   if (selected.length === 0) {
     alert("Bạn hãy tích chọn ít nhất 1 Tổ dân phố trước nhé!");
     return;
   }
 
+  pushCommandSnapshot("Trước khi áp dụng TDP vào văn bản");
+
   let tdpTextKinhGui = "";
   let tdpTextNoiNhan = "";
 
-  if (selected.length === total && total > 1) {
-    tdpTextKinhGui = `Ban cán sự / Tổ trưởng các Tổ dân phố (từ Tổ dân phố 1 đến Tổ dân phố ${total})`;
-    tdpTextNoiNhan = `- Các Tổ dân phố (từ TDP 1 đến TDP ${total}) (để t/h);`;
+  if (selected.length === all.length && all.length > 1) {
+    tdpTextKinhGui = "Ban cán sự / Tổ trưởng các Tổ dân phố trên địa bàn phường";
+    tdpTextNoiNhan = "- Các Tổ dân phố trên địa bàn phường (để t/h);";
   } else if (selected.length === 1) {
-    tdpTextKinhGui = `Tổ trưởng Tổ dân phố ${selected[0]}`;
-    tdpTextNoiNhan = `- Tổ dân phố ${selected[0]} (để t/h);`;
+    tdpTextKinhGui = `Tổ trưởng ${selected[0]}`;
+    tdpTextNoiNhan = `- ${selected[0]} (để t/h);`;
   } else {
-    const listStr = selected.map((n) => `Tổ dân phố ${n}`).join(", ");
-    const shortStr = selected.join(", ");
-    tdpTextKinhGui = `Tổ trưởng các Tổ dân phố: ${shortStr}`;
-    tdpTextNoiNhan = `- Các Tổ dân phố: ${shortStr} (để t/h);`;
+    const listStr = selected.join(", ");
+    tdpTextKinhGui = `Tổ trưởng các Tổ dân phố: ${listStr}`;
+    tdpTextNoiNhan = `- Các Tổ dân phố: ${listStr} (để t/h);`;
   }
 
   // Đưa vào Kính gửi
   const kinhGuiEl = document.getElementById("inputKinhGui");
   if (!kinhGuiEl.value.trim()) {
     kinhGuiEl.value = tdpTextKinhGui;
-  } else if (!kinhGuiEl.value.includes("Tổ dân phố")) {
+  } else if (!kinhGuiEl.value.includes("Tổ dân phố") && !kinhGuiEl.value.includes("TDP")) {
     kinhGuiEl.value = kinhGuiEl.value.trim() + ";\n" + tdpTextKinhGui;
   } else {
     kinhGuiEl.value = tdpTextKinhGui;
@@ -669,6 +738,34 @@ function applySelectedTdpToDocument() {
   noiNhanEl.value = lines.join("\n");
 
   renderDocumentPreview();
+  pushCommandSnapshot("Đưa danh sách TDP vào văn bản");
+}
+
+function saveTdpBulkFromModal() {
+  const textarea = document.getElementById("tdpBulkTextarea");
+  const raw = textarea ? textarea.value : "";
+  const lines = raw
+    .split("\n")
+    .map((s) => s.trim())
+    .filter(Boolean);
+
+  if (lines.length === 0) {
+    alert("Vui lòng nhập ít nhất 1 tên Tổ dân phố!");
+    return;
+  }
+
+  saveTdpNames(lines);
+  closeModal("tdpModal");
+  alert(`✅ Đã lưu thành công ${lines.length} Tổ dân phố!`);
+}
+
+function resetDefaultTdpList() {
+  if (!confirm("Bạn có muốn đặt lại danh sách thành 'Tổ dân phố 1' đến 'Tổ dân phố 21' không?")) return;
+  const defaultList = Array.from({ length: 21 }, (_, i) => `Tổ dân phố ${i + 1}`);
+  const textarea = document.getElementById("tdpBulkTextarea");
+  if (textarea) textarea.value = defaultList.join("\n");
+  saveTdpNames(defaultList);
+  alert("Đã khôi phục danh sách mặc định!");
 }
 
 // ============================================================================
@@ -1705,11 +1802,11 @@ async function generateWithGemini(includeClarifications = false) {
   const loai = document.getElementById("selectLoaiVanBan").value;
   const tenLoai = TEN_LOAI_VAN_BAN_MAP[loai] || "CÔNG VĂN";
   const coQuan = document.getElementById("inputIssuingOrg").value;
-  const selectedTdps = getSelectedTdpNumbers();
+  const selectedTdps = getSelectedTdpNames();
   const tdpContext =
     selectedTdps.length > 0
-      ? `Các Tổ dân phố liên quan được chọn: Tổ dân phố ${selectedTdps.join(", ")}.`
-      : `Các Tổ dân phố trên địa bàn phường được gọi tên theo số (Tổ dân phố 1, Tổ dân phố 2...).`;
+      ? `Các Tổ dân phố liên quan được chọn: ${selectedTdps.join(", ")}.`
+      : `Các Tổ dân phố trên địa bàn phường gồm: ${getSavedTdpNames().join(", ")}.`;
 
   const fileInstruction =
     attachedFilesState.length > 0
@@ -2212,6 +2309,10 @@ function openModal(id) {
   if (el) el.classList.add("open");
   if (id === "historyModal") renderHistoryTable();
   if (id === "directoryModal") renderSignerDirectoryTable();
+  if (id === "tdpModal") {
+    const area = document.getElementById("tdpBulkTextarea");
+    if (area) area.value = getSavedTdpNames().join("\n");
+  }
 }
 
 function closeModal(id) {

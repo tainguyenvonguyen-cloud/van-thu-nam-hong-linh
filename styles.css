@@ -398,9 +398,9 @@ textarea.form-control {
 
 .tdp-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
   gap: 6px;
-  max-height: 150px;
+  max-height: 170px;
   overflow-y: auto;
   margin-top: 8px;
   padding-right: 4px;
@@ -409,14 +409,47 @@ textarea.form-control {
 .tdp-item {
   display: flex;
   align-items: center;
-  gap: 5px;
-  font-size: 12px;
+  justify-content: space-between;
+  gap: 6px;
+  font-size: 12.5px;
   background: #fff;
   border: 1px solid #cbd5e1;
-  padding: 4px 7px;
-  border-radius: 5px;
+  padding: 5px 8px;
+  border-radius: 6px;
   cursor: pointer;
   user-select: none;
+  transition: all 0.15s;
+}
+
+.tdp-item-label {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdp-item-label span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tdp-del-btn {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0 2px;
+  line-height: 1;
+}
+
+.tdp-del-btn:hover {
+  color: #b91c1c;
+  font-weight: bold;
 }
 
 .tdp-item input {
